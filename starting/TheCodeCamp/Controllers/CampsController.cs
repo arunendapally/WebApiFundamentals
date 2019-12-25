@@ -1,8 +1,8 @@
-﻿using AutoMapper;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web.Http;
+using AutoMapper;
 using TheCodeCamp.Data;
 using TheCodeCamp.Models;
 
@@ -39,7 +39,7 @@ namespace TheCodeCamp.Controllers
             }
         }
 
-        [Route("{moniker}")]
+        [Route("{moniker}", Name = "GetCamp")]
         public async Task<IHttpActionResult> Get(string moniker, bool includeTalks = false)
         {
             try
@@ -75,6 +75,34 @@ namespace TheCodeCamp.Controllers
                 var mappedResult = mapper.Map<IEnumerable<CampModel>>(result);
 
                 return Ok(mappedResult);
+            }
+            // TODO: Logging
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
+        }
+
+        [Route()]
+        public async Task<IHttpActionResult> Post(CampModel campModel)
+        {
+            try
+            {
+                if (await campRepository.GetCampAsync(campModel.Moniker) != null)
+                {
+                    ModelState.AddModelError("Moniker", "Moniker is in use");
+                }
+                if (ModelState.IsValid)
+                {
+                    var camp = mapper.Map<Camp>(campModel);
+                    campRepository.AddCamp(camp);
+
+                    if (await campRepository.SaveChangesAsync())
+                    {
+                        return CreatedAtRoute("GetCamp", new { moniker = camp.Moniker }, mapper.Map<CampModel>(camp));
+                    }
+                }
+                return BadRequest(modelState: ModelState);
             }
             // TODO: Logging
             catch (Exception ex)
